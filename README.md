@@ -5,7 +5,7 @@ An app to filter offensive comments from social media feeds.
 
 ## GOAL
 Create an app that can be used, in the same way as a spam filter, by individual users
-to filter out offensive comments from their social media feeds.  Working lnaguage: German.
+to filter out offensive comments from their social media feeds.  Working language: German.
 
 # The Thought Behind the App
 
