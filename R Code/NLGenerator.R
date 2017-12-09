@@ -1,4 +1,6 @@
 
+# DATE: 09.12.2017
+# Trying to add the nuance that ich statements are not offensive.
 #
 # In this file we will create an elementary German sentence generator in R.
 # We will use this to generate a training set for our algorithm,
@@ -10,19 +12,21 @@ library(plyr)
 library(stringr)
 library(tm)
 library(RWeka)
-library(rnn)
+
 
 library(caret)   # For learning algorithm training
 
 library(kernlab) # For SVM
-library(xgboost)    # For Neural Networks
-library(party) # For cforest
-library(evtree) # For evtree
-library(gbm) # For gbm
-library(deepboost) # For deepboost
+# library(rnn) # For Neural Networks
+# library(xgboost)    # For Neural Networks
+# library(party) # For cforest
+# library(evtree) # For evtree
+# library(gbm) # For gbm
+# library(deepboost) # For deepboost
 
 library(doParallel) # This, to allow parallel processing
 registerDoParallel(cores = 3) # Use three core processors in parallel
+
 
 
 #### Template 1: #### -------------------------------------------------------------------
@@ -190,6 +194,39 @@ make_Sentences_Template4 <- function(category = "Good") {
 
 
 
+
+#### Template 5: #### -------------------------------------------------------------------
+
+# "Ich bin <epithet>", "Wir sind <epithet>"
+# where an epithet can be an adjective plus a noun, or just a noun
+
+Template5Env <- new.env(parent = emptyenv())
+
+Template5Env$emphasis <- c("", "ganz", "wirklich", "sehr", "echt", "so")
+
+Template5Env$adjBad <- c("tot", "blöd", "deppert", "scheisse", "saublöd", "saudumm", "ekelig", "ekelhaft")
+
+Template5Env$adjGood <- c("toll", "super", "nett", "schön", 
+                          "intelligent", "wunderbar", "gut", 
+                          "schlau", "fabelhaft", Template5Env$adjBad)
+# For this template, all adjectives are "good"
+
+make_Sentences_Template5 <- function(category = "Good") {
+  
+  emph <- Template5Env$emphasis
+  
+  adj <- paste0("adj", category) %>%
+    get(pos = Template5Env) 
+  
+  partsDF <- expand.grid(a = c("Ich bin", "Wir sind"), b = emph, c = adj)
+  
+  sentences <- mdply(partsDF, paste, .expand = FALSE)[[2]] 
+  
+  return(sentences) 
+}
+
+
+
 #### Make Corpus Function: #### ---------------------------------------------------------
 
 make_TemplateCorpus <- function(commentType, template = 1){
@@ -201,6 +238,8 @@ make_TemplateCorpus <- function(commentType, template = 1){
                {make_Sentences_Template3(category = commentType) %>%                                       ## use Template 1
                    c(recursive = TRUE)},
                {make_Sentences_Template4(category = commentType) %>%                                       ## use Template 1
+                   c(recursive = TRUE)}, 
+               {make_Sentences_Template5() %>%                                       ## use Template 5
                    c(recursive = TRUE)}
   )
   print(commentType)
@@ -216,15 +255,20 @@ make_TemplateCorpus <- function(commentType, template = 1){
 #### RUN #### : -------------------------------------------------------------------------
 
 make_Corpus <- function(i) {
-  DF <- llply(c("Good", "Bad"), make_TemplateCorpus, template = i) 
-  DF <- c(DF[[1]], DF[[2]])
+  if (i == 5) {
+    DF <- make_TemplateCorpus("Good", template = 5) 
+  } else {
+    DF <- llply(c("Good", "Bad"), make_TemplateCorpus, template = i) 
+    DF <- c(DF[[1]], DF[[2]])
+  }
 
   names(DF) <- paste("T", i, "_", 1:length(DF), sep = "")
   return(DF)
 }
 
-fullCorpus <- llply(1:4, make_Corpus)
-fullCorpus <- c(fullCorpus[[1]], fullCorpus[[2]], fullCorpus[[3]], fullCorpus[[4]])
+fullCorpus <- llply(1:5, make_Corpus)
+fullCorpus <- c(fullCorpus[[1]], fullCorpus[[2]], 
+                fullCorpus[[3]], fullCorpus[[4]], fullCorpus[[5]])
 
 meta(fullCorpus)
 
@@ -247,13 +291,7 @@ all(names(fullCorpus) == row.names(dtm))
 length(unique(row.names(dtm)))
 length(names(fullCorpus))
 length(unique(names(fullCorpus)))
-names(fullCorpus)[1:100]
-temp <- duplicated(names(fullCorpus))
-names(fullCorpus)[temp]
-inspect(fullCorpus[["T4_25"]])
 
-# hmmmm .... why are there duplicated rownames???
-# took care of that now - it's from when the corpi Good and Bad are combined
 
 #### Learning #### ----------------------------------------------------------------------
 
@@ -321,13 +359,16 @@ summary(SVMLinearfit)
 
 predictions <- predict(SVMLinearfit, newdata = TestX)
 confusionMatrix(predictions, TestY$Classification)
-# Awesome 100% on test, 98% on Training!
+# Awesome 99.4% on test, 99.6% on Training!
 # Performs better without preprocessing!
 # Now we have 99% accuracy on training and test sets.
 # BUT, we have duplicate row names.  This needs to be checked!
 predictions <- predict(SVMLinearfit, newdata = TestX, type = "prob")
 predictions[1:10, ]
 
+which(predictions != TestY$Classification)
+error <- TestX[predictions != TestY$Classification, ]
+error
 
 ## evtree: ------------------------------------------------------------------------------
 
@@ -497,6 +538,7 @@ summary(svmModel)
 
 predictions <- predict(svmModel, newdata = FinalX)
 confusionMatrix(predictions, FinalY$Classification)
+# This final model gets it 100% right
 
 predictions <- predict(svmModel, newdata = FinalX, type = "prob")
 predictions[1:10, ]
