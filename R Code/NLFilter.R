@@ -242,7 +242,7 @@ make_TemplateCorpus <- function(commentType, template = 1){
                {make_Sentences_Template5() %>%                                       ## use Template 5
                    c(recursive = TRUE)}
   )
-  print(commentType)
+
   comments <- VectorSource(DF)
   corpusComments <- VCorpus(comments, readerControl = list(language = "ger")) %>%
     tm_map(stripWhitespace)
@@ -270,7 +270,7 @@ fullCorpus <- llply(1:5, make_Corpus)
 fullCorpus <- c(fullCorpus[[1]], fullCorpus[[2]], 
                 fullCorpus[[3]], fullCorpus[[4]], fullCorpus[[5]])
 
-meta(fullCorpus)
+# meta(fullCorpus)
 
 ### The NGramTokenizer comes with default min 1-gram, max 3-gram.  if I want to change that,
 ### I need to create a new function for use with DocumentTermMatrix
@@ -284,13 +284,9 @@ dtm <- DocumentTermMatrix(fullCorpus, control = list(tokenize = myTokenizer, wor
 inspect(dtm[500:510, 2480:2484])
 dim(dtm)
 length(fullCorpus)
-row.names(dtm)
-names(fullCorpus)
+
 all(names(fullCorpus) == row.names(dtm))
 
-length(unique(row.names(dtm)))
-length(names(fullCorpus))
-length(unique(names(fullCorpus)))
 
 
 #### Learning #### ----------------------------------------------------------------------
@@ -359,17 +355,19 @@ summary(SVMLinearfit)
 
 predictions <- predict(SVMLinearfit, newdata = TestX)
 confusionMatrix(predictions, TestY$Classification)
-# Awesome 99.4% on test, 99.6% on Training!
-# Performs better without preprocessing!
-# Now we have 99% accuracy on training and test sets.
-# BUT, we have duplicate row names.  This needs to be checked!
-predictions <- predict(SVMLinearfit, newdata = TestX, type = "prob")
-predictions[1:10, ]
+# Awesome 99.4% on test, 99.6% on Training
+# Performs better without preprocessing
 
 which(predictions != TestY$Classification)
 error <- TestX[predictions != TestY$Classification, ]
 error
 
+# If I want probabilities instead of class:
+predictions <- predict(SVMLinearfit, newdata = TestX, type = "prob")
+predictions[1:10, ]
+
+
+#### BEGIN TOO SLOW / TOO MUCH MEMORY USED ####------------------------------------------
 ## evtree: ------------------------------------------------------------------------------
 
 set.seed(8)
@@ -512,6 +510,8 @@ confusionMatrix(predictions, TestY$Classification)
 predictions <- predict(xgBoostTreefit, newdata = TestX, type = "prob")
 predictions[1:10, ]
 
+
+#### END TOO SLOW / TOO MUCH MEMORY USED ------------------------------------------------
 
 ## Create Final Prediction Algorithm: ---------------------------------------------------
 
